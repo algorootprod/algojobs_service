@@ -1,11 +1,9 @@
-import os
 import logging
 import torch
 from fastapi import FastAPI
 from sentence_transformers import SentenceTransformer
-
 from app.core.config import settings
-from app.api import ranker, scheduler
+from app import ranker, scheduler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
