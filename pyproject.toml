@@ -1,0 +1,27 @@
+[project]
+name = "algo-hr"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.119.0",
+    "huggingface-hub>=0.35.3",
+    "livekit>=1.0.17",
+    "livekit-agents>=1.2.15",
+    "livekit-api>=1.0.7",
+    "livekit-plugins-deepgram>=1.2.15",
+    "livekit-plugins-google>=1.2.15",
+    "livekit-plugins-openai>=1.2.15",
+    "livekit-plugins-silero>=1.2.15",
+    "markupsafe>=3.0.3",
+    "pydantic>=2.12.3",
+    "pyshorteners>=1.0.1",
+    "requests>=2.32.5",
+    "sentence-transformers>=5.1.1",
+    "torch>=2.9.0",
+    "tqdm>=4.67.1",
+    "transformers>=4.57.1",
+    "uvicorn>=0.38.0",
+]

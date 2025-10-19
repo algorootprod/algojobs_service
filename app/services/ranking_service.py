@@ -3,10 +3,9 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from app.schemas import Resume, RankedResume
 
-from app.api.v1 import schemas
-
-def _serialize_resume(r: schemas.Resume) -> str:
+def _serialize_resume(r:Resume) -> str:
     """Converts a structured Resume object into a single string."""
     parts = []
     if r.summary:
@@ -47,9 +46,9 @@ def _cosine_similarity_matrix(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 def rank_resumes_by_similarity(
     model: SentenceTransformer,
     job_description: str,
-    resumes: List[schemas.Resume],
+    resumes: List[Resume],
     batch_size: int
-) -> List[schemas.RankedResume]:
+) -> List[RankedResume]:
     """
     Calculates similarity scores and returns a ranked list of resumes.
     """
@@ -72,7 +71,7 @@ def rank_resumes_by_similarity(
         candidate_resume = resumes[i]
         score = float(similarities[i])
         ranked_results.append(
-            schemas.RankedResume(
+            RankedResume(
                 candidate_id=candidate_resume.candidate_id,
                 name=candidate_resume.name,
                 score=score,
@@ -81,3 +80,4 @@ def rank_resumes_by_similarity(
         )
         
     return ranked_results
+

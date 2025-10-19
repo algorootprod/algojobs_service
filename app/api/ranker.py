@@ -3,8 +3,8 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from sentence_transformers import SentenceTransformer
 
 from app.core.config import settings
-from app.api.v1 import schemas
-from app.services import embedding_service
+from app import schemas
+from app.services import ranking_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,7 +38,7 @@ def rank_resumes(
         )
 
     try:
-        ranked_results = embedding_service.rank_resumes_by_similarity(
+        ranked_results = ranking_service.rank_resumes_by_similarity(
             model=model,
             job_description=req.job_description,
             resumes=req.resumes,

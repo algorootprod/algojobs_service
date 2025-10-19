@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from sentence_transformers import SentenceTransformer
 
 from app.core.config import settings
-from app.api.v1.endpoints import ranker, scheduler
+from app.api import ranker, scheduler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

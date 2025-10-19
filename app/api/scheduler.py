@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException
 
-from app.api.v1 import schemas
+from app import schemas
 from app.services import meeting_service
 from app.helpers import prompt_builder
 
