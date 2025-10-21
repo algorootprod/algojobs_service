@@ -42,14 +42,6 @@ def shutdown_event():
 
 
 # --- API Routers ---
-app.include_router(ranker.router, prefix=settings.API_V1_STR, tags=["Resume Ranker"])
-app.include_router(scheduler.router, prefix=settings.API_V1_STR, tags=["Interview Scheduler"])
+app.include_router(ranker, prefix=settings.API_V1_STR, tags=["Resume Ranker"])
+app.include_router(scheduler, prefix=settings.API_V1_STR, tags=["Interview Scheduler"])
 
-
-# --- Root Endpoint ---
-@app.get("/", tags=["Root"])
-def read_root():
-    """
-    Root endpoint providing basic service information.
-    """
-    return {"service": "intelligent-hr-service", "status": "ok"}

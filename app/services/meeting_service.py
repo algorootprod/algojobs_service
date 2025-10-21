@@ -6,10 +6,7 @@ from livekit import api
 from app.core.config import settings
 
 def _generate_token(identity: str, name: str, room: str) -> str:
-    """Generates a LiveKit JWT token for a participant."""
-    if not all([settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET]):
-        raise ValueError("LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set.")
-        
+    """Generates a LiveKit JWT token for a participant.""" 
     access_token = (
         api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
         .with_identity(identity)
@@ -37,7 +34,6 @@ def _get_tiny_url(long_url: str) -> str:
         data = response.json()
         return data.get("data", {}).get("tiny_url", long_url)
     except requests.exceptions.RequestException:
-        # On failure, return the original URL
         return long_url
 
 def create_meeting_link(room_name: str, participant_name: str) -> str:
@@ -50,7 +46,7 @@ def create_meeting_link(room_name: str, participant_name: str) -> str:
     
     # Construct the full meeting URL
     meet_link = (
-        f"{settings.MEET_HOST}?liveKitUrl={quote_plus(settings.LIVEKIT_WS_URL)}"
+        f"{settings.MEET_HOST}?liveKitUrl={quote_plus(settings.LIVEKIT_URL)}"
         f"&token={quote_plus(token)}"
     )
     

@@ -1,7 +1,6 @@
 import logging
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sentence_transformers import SentenceTransformer
-
 from app.core.config import settings
 from app import schemas
 from app.services import ranking_service
