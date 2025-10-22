@@ -3,8 +3,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional, Callable, Any
-
-from app.services.agent_manager import AgentManager
+from app.services.agent_service import AgentManager
 
 logger = logging.getLogger("AgentRegistry")
 logger.setLevel(logging.INFO)
