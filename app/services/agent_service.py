@@ -10,7 +10,6 @@ from app.core.config import config  # adjust if your config path differs
 logger = logging.getLogger("AgentManager")
 logger.setLevel(logging.INFO)
 
-
 class AgentManager:
     """
     Minimal AgentManager for a single agent_name + provided entrypoint.

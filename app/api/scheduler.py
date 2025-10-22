@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import logging
 import uuid
 from fastapi import APIRouter, HTTPException
@@ -59,6 +60,63 @@ async def schedule_interview(req: schemas.ScheduleRequest):
         logger.exception(f"Error scheduling interview for candidate {req.candidate_id}")
         raise HTTPException(status_code=500, detail=f"Failed to schedule interview: {e}")
 
+@router.post("/start", response_model=schemas.ScheduleResponse)
+async def start_interview(req: schemas.ScheduleRequest):
+    """
+    Start an AI-powered interview immediately.
+    Returns the same ScheduleResponse (token, room_name, agent_name, scheduled_time).
+    """
+    try:
+        agent_instructions = prompt_builder.create_interview_prompt(
+            resume=req.candidate_resume,
+            job_description=req.job_description,
+            interview_template=req.interview_template
+        )
+
+        room_name = f"interview-{uuid.uuid4()}"
+        agent_name = f"agent-{uuid.uuid4()}"
+
+        token = create_token_with_agent_dispatch(
+            agent_name=agent_name,
+            room_name=room_name,
+            metadata={"prompt": agent_instructions},
+            identity=str(req.candidate_id),
+        )
+
+        if not token:
+            logger.error("Failed to create LiveKit token for agent dispatch")
+            raise HTTPException(status_code=500, detail="Failed to create access token for interview.")
+
+        # Start the agent immediately (respects registry semaphore)
+        mgr, started = await agent_registry.start_now(
+            agent_name=agent_name,
+            entrypoint=entrypoint,
+            room_name=room_name,
+            token=token,
+        )
+
+        # scheduled_time field: use "now" for immediate start
+        scheduled_time = datetime.now(timezone.utc)
+
+        message = "Agent started immediately. Awaiting candidate to join."
+        if not started:
+            # The registry reported agent was already running (rare since we use UUID names),
+            # but include a clear message for callers.
+            message = "Agent already running (start request was ignored); token created."
+
+        return schemas.ScheduleResponse(
+            message=message,
+            candidate_id=req.candidate_id,
+            agent_name=agent_name,
+            room_name=room_name,
+            scheduled_time=scheduled_time,
+            token=token,
+        )
+
+    except Exception as e:
+        logger.exception(f"Error starting interview for candidate {req.candidate_id}")
+        raise HTTPException(status_code=500, detail=f"Failed to start interview: {e}")
+    
 @router.post("/stop/{agent_name}")
 async def stop_interview(agent_name: str):
     """
