@@ -66,7 +66,9 @@ class ScheduleRequest(BaseModel):
 
 class ScheduleResponse(BaseModel):
     message: str
+    agent_name:str
+    room_name: str
     candidate_id: str
     scheduled_time: datetime
-    meeting_link: str
+    token: str
     # In a real app, this would also include a meeting_id to track the interview state

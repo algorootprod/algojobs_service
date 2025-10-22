@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sentence_transformers import SentenceTransformer
-from app.core.config import settings
+from app.core.config import config
 from app import schemas
 from app.services import ranking_service
 
@@ -30,10 +30,10 @@ def rank_resumes(
     n = len(req.resumes)
     if n == 0:
         raise HTTPException(status_code=400, detail="No resumes provided")
-    if n > settings.MAX_RESUMES:
+    if n > config.MAX_RESUMES:
         raise HTTPException(
             status_code=413,
-            detail=f"Too many resumes. Max allowed is {settings.MAX_RESUMES}"
+            detail=f"Too many resumes. Max allowed is {config.MAX_RESUMES}"
         )
 
     try:
@@ -41,7 +41,7 @@ def rank_resumes(
             model=model,
             job_description=req.job_description,
             resumes=req.resumes,
-            batch_size=settings.EMBED_BATCH_SIZE
+            batch_size=config.EMBED_BATCH_SIZE
         )
     except Exception as e:
         logger.exception("Failed during embedding or similarity calculation.")

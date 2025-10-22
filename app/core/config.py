@@ -11,7 +11,7 @@ class Settings():
     API_V1_STR: str = "/api/v1"
     
     # --- Resume Ranker Settings ---
-    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
     EMBED_BATCH_SIZE: int = int(os.getenv("EMBED_BATCH_SIZE", "32"))
     MAX_RESUMES: int = int(os.getenv("MAX_RESUMES", "1000"))
 
@@ -29,4 +29,4 @@ class Settings():
         raise Exception("Environment variables not set properly. Please check your .env file.")
 
 # Instantiate settings
-settings = Settings()
+config = Settings()
