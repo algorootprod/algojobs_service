@@ -1,83 +1,147 @@
-from typing import List
+from typing import List, Optional
 import torch
-import torch.nn.functional as F
-import numpy as np
-from sentence_transformers import SentenceTransformer
-from app.schemas import Resume, RankedResume
+from sentence_transformers import SentenceTransformer, util
+from app.schemas import Resume,RankedResumeOut, RecommendedJob, JobDescriptionTemplate
+from app.services.mongoDB_service import MongoService
 
-def _serialize_resume(r:Resume) -> str:
-    """Converts a structured Resume object into a single string."""
-    parts = []
-    if r.summary:
-        parts.append(f"Summary: {r.summary}")
+class ResumeRanker:
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        batch_size: int = 32,
+        device: Optional[str] = None,
+    ):
+        if model_name is None:
+            model_name = "Qwen/Qwen3-Embedding-0.6B"
+        else:
+            model_name = model_name
+        self.model = SentenceTransformer(model_name)
+        self.batch_size = batch_size
+        self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
+        # try to move model (some wrappers ignore .to())
+        try:
+            self.model.to(self.device)
+        except Exception:
+            pass
 
-    if r.experience:
-        exp_strs = []
-        for e in r.experience:
-            exp_parts = [e.title, e.company]
-            if e.description:
-                exp_parts.append(e.description)
-            exp_strs.append(" | ".join(p.strip() for p in exp_parts if p))
-        parts.append("Experience: " + " || ".join(exp_strs))
+    @staticmethod
+    def _serialize_resume(r: Resume) -> str:
+        parts = []
+        if getattr(r, "summary", None):
+            parts.append(f"Summary: {r.summary}")
 
-    if r.skills:
-        skill_strs = [s.name for s in r.skills]
-        parts.append("Skills: " + ", ".join(skill_strs))
-    
-    # You can add more fields like projects, education etc. for a more comprehensive text.
+        if getattr(r, "experience", None):
+            exp_strs = []
+            for e in r.experience:
+                exp_parts = [getattr(e, "title", ""), getattr(e, "company", "")]
+                if getattr(e, "description", None):
+                    exp_parts.append(e.description)
+                exp_strs.append(" | ".join(p.strip() for p in exp_parts if p))
+            if exp_strs:
+                parts.append("Experience: " + " || ".join(exp_strs))
 
-    return "\n".join(parts)
+        if getattr(r, "skills", None):
+            skill_strs = [s.name for s in r.skills if getattr(s, "name", None)]
+            if skill_strs:
+                parts.append("Skills: " + ", ".join(skill_strs))
 
-def _batch_encode(model: SentenceTransformer, texts: List[str], batch_size: int):
-    """Encodes a list of texts in batches."""
-    all_embeddings = []
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i: i + batch_size]
-        embeddings = model.encode(batch, convert_to_tensor=True, show_progress_bar=False)
-        all_embeddings.append(embeddings)
-    return torch.cat(all_embeddings, dim=0)
+        return "\n".join(parts)
 
-def _cosine_similarity_matrix(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    """Calculates cosine similarity between two tensors."""
-    a_norm = F.normalize(a, p=2, dim=1)
-    b_norm = F.normalize(b, p=2, dim=1)
-    return a_norm @ b_norm.T
-
-def rank_resumes_by_similarity(
-    model: SentenceTransformer,
-    job_description: str,
-    resumes: List[Resume],
-    batch_size: int
-) -> List[RankedResume]:
-    """
-    Calculates similarity scores and returns a ranked list of resumes.
-    """
-    # Serialize resume objects to plain text
-    resume_texts = [_serialize_resume(r) for r in resumes]
-
-    # Generate embeddings
-    job_emb = model.encode([job_description], convert_to_tensor=True, show_progress_bar=False)
-    resume_embs = _batch_encode(model, resume_texts, batch_size)
-
-    # Calculate cosine similarity
-    similarities = _cosine_similarity_matrix(job_emb, resume_embs).squeeze(0).cpu().numpy()
-
-    # Sort resumes by similarity score
-    sorted_indices = np.argsort(-similarities)
-
-    # Create the ranked list of results
-    ranked_results = []
-    for i in sorted_indices:
-        candidate_resume = resumes[i]
-        score = float(similarities[i])
-        ranked_results.append(
-            RankedResume(
-                candidate_id=candidate_resume.candidate_id,
-                name=candidate_resume.name,
-                score=score,
-                resume=candidate_resume
-            )
+    def encode_texts(self, texts: List[str]):
+        embeddings = self.model.encode(
+            texts,
+            batch_size=self.batch_size,
+            convert_to_tensor=True,
+            show_progress_bar=False,
+            device=self.device,
         )
-        
-    return ranked_results
+        # ensure tensor on desired device
+        try:
+            if embeddings.device.type != torch.device(self.device).type:
+                embeddings = embeddings.to(self.device)
+        except Exception:
+            pass
+        return embeddings
 
+    def rank_resumes_by_similarity(
+        self,
+        job_description: str,
+        resumes: List[Resume],
+        job_id: Optional[str] = None,
+        top_k: Optional[int] = None,
+    ) -> List[RankedResumeOut]:
+        """
+        Rank resumes by cosine similarity to the job_description and return
+        a list of RankedResumeOut objects matching your requested schema.
+
+        - job_id: optional id of the job (string). If provided, it will be used
+                  in recommended_jobs.job_id for each returned resume.
+        - top_k: optional limit on number of resumes to return.
+        """
+        # Serialize resumes
+        resume_texts = [self._serialize_resume(r) for r in resumes]
+
+        # Encode
+        job_emb = self.encode_texts([job_description])           # (1, dim)
+        resume_embs = self.encode_texts(resume_texts)            # (N, dim)
+
+        # Cosine similarities (1, N) -> squeeze -> (N,)
+        cos_scores = util.cos_sim(job_emb, resume_embs).squeeze(0)
+        scores_cpu = cos_scores.cpu()
+
+        # Sort indices by descending score
+        sorted_indices = torch.argsort(scores_cpu, descending=True).tolist()
+        if top_k is not None:
+            sorted_indices = sorted_indices[:top_k]
+
+        out: List[RankedResumeOut] = []
+        for rank_position, i in enumerate(sorted_indices, start=1):
+            r = resumes[i]
+            score = float(scores_cpu[i].item())
+
+            # best-effort extraction of ids and name fields
+            candidate_id = getattr(r, "id", None) 
+            owner = getattr(r, "owner", None)
+
+            # name resolution: prefer fullName, otherwise join firstName + lastName
+            name = getattr(r, "fullName", None)
+            if not name:
+                fn = getattr(r, "firstName", None) or ""
+                ln = getattr(r, "lastName", None) or ""
+                name = (fn + " " + ln).strip() or None
+
+            # Build recommended_jobs list — currently single job (rank=1)
+            jid = job_id if job_id is not None else "unknown"
+            recommended_jobs = [RecommendedJob(job_id=str(jid), score=score, rank=1)]
+
+            out.append(
+                RankedResumeOut(
+                    candidate_id=str(candidate_id) if candidate_id is not None else None,
+                    owner=str(owner) if owner is not None else None,
+                    name=name,
+                    recommended_jobs=recommended_jobs,
+                )
+            )
+
+        return out
+
+
+    # print(f"Loaded {len(resumes)} resumes from MongoDB.")
+    # print(resumes[0])
+
+    # ranked_resumes = ranker.rank_resumes_by_similarity(job_description=job_desc, resumes=resumes, job_id="job123", top_k=2)
+
+    # print("Top ranked resumes:")
+    # print(len(ranked_resumes))
+    # print(ranked_resumes[0])
+    # for rr in ranked_resumes:
+    #     print(f"Candidate ID: {rr.candidate_id}, Name: {rr.name}, Score: {rr.recommended_jobs[0].score:.4f}")
+
+    # for rr in ranked_resumes:
+    #     result = service.upsert_ranked_resume_out(rr)
+    #     if result:
+    #         print(f"✅ Upserted recommendation for {rr.name} ({rr.candidate_id})")
+    #     else:
+    #         print(f"⚠️ Failed to upsert {rr.name} ({rr.candidate_id})")
+
+    # print("\nAll upserts complete ✅")

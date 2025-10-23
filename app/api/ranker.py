@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sentence_transformers import SentenceTransformer
 from app.core.config import config
-from app import schemas
+from app.schemas import RankRequest, RankResponse
 from app.services import ranking_service
 
 logger = logging.getLogger(__name__)
@@ -12,9 +12,9 @@ def get_model(request: Request) -> SentenceTransformer:
     """Dependency to get the loaded model from app state."""
     return request.app.state.model
 
-@router.post("/rank", response_model=schemas.RankResponse)
+@router.post("/rank", response_model=RankResponse)
 def rank_resumes(
-    req: schemas.RankRequest,
+    req: RankRequest,
     model: SentenceTransformer = Depends(get_model)
 ):
     """
@@ -51,7 +51,7 @@ def rank_resumes(
     top_k = req.top_k if req.top_k is not None else n
     results_to_return = ranked_results[:top_k]
 
-    return schemas.RankResponse(
+    return RankResponse(
         total_resumes=n,
         returned=len(results_to_return),
         results=results_to_return

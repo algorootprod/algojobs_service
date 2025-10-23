@@ -17,3 +17,4 @@ torch
 tqdm
 transformers
 uvicorn
+bson

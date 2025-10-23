@@ -21,6 +21,7 @@ class Settings():
     LIVEKIT_URL: str = os.getenv("LIVEKIT_URL", "")
     MEET_HOST: str = os.getenv("MEET_HOST", "https://meet.livekit.io")
     TINYURL_API_KEY: str = os.getenv("TINYURL_API_KEY", "")
+    MONGO_DB_URL: str = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
     
     class Config:
         case_sensitive = True

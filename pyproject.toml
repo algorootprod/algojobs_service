@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "bson>=0.5.10",
     "dotenv>=0.9.9",
     "fastapi>=0.119.0",
     "huggingface-hub>=0.35.3",
@@ -16,7 +17,8 @@ dependencies = [
     "livekit-plugins-openai>=1.2.15",
     "livekit-plugins-silero>=1.2.15",
     "markupsafe>=3.0.3",
-    "pydantic>=2.12.3",
+    "pydantic[email]>=2.12.3",
+    "pymongo>=4.15.3",
     "pyshorteners>=1.0.1",
     "requests>=2.32.5",
     "sentence-transformers>=5.1.1",
