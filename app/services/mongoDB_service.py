@@ -30,7 +30,7 @@ class MongoService:
     """
 
     def __init__(self,
-                 db_name: str = "algo-hr",
+                 db_name: str = "algojobs",
                  connection_env_names: List[str] = None,
                  **kwargs):
         """
@@ -51,9 +51,9 @@ class MongoService:
 
         # standard collection names (change if needed)
         self.resumes_coll_name = "candidates"
-        self.jobdesc_coll_name = "jobdescriptiontemplates"
+        self.jobdesc_coll_name = "jobdescriptions"
         self.question_coll_name = "questionstemplates"
-        self.jobs_coll_name = "jobs"
+        # self.jobs_coll_name = "jobs"
         self.recommendations_coll_name = "recommendations"
 
         logger.info("MongoService connected to database '%s'", db_name)
@@ -170,50 +170,12 @@ class MongoService:
     # -----------------------
     # Job description templates specific
     # -----------------------
-    def get_jobdescription_by_id(self, object_id: str) -> Optional[Dict[str, Any]]:
+    def get_job_by_id(self, object_id: str) -> Optional[Dict[str, Any]]:
         return self.get_by_id(self.jobdesc_coll_name, object_id)
 
-    def get_all_jobdescriptions(self, filter_query: Dict[str, Any] = None, limit: int = 0) -> List[Dict[str, Any]]:
+    def get_all_jobs(self, filter_query: Dict[str, Any] = None, limit: int = 0) -> List[Dict[str, Any]]:
         sort=[("createdAt",-1)]
         return self.get_all(self.jobdesc_coll_name, filter_query, limit, sort)
-
-    def get_job_by_id(self, object_id: str) -> Optional[Dict[str, Any]]:
-        """Return one job document by ID."""
-        return self.get_by_id(self.jobs_coll_name, object_id)
-
-    def get_all_jobs(self, filter_query: Dict[str, Any] = None, limit: int = 0) -> List[Dict[str, Any]]:
-        """Return all job documents."""
-        sort = [("createdAt", -1)]
-        return self.get_all(self.jobs_coll_name, filter_query, limit, sort)
-    
-    def get_job_id_by_jobdescription_id(self, jobdescription_id: str) -> Optional[str]:
-        """
-        Return the job document's _id (as a string) for the given jobDescriptionTemplate id.
-
-        Args:
-            jobdescription_id: str - ObjectId hex string or ObjectId representing a jobDescriptionTemplate
-
-        Returns:
-            str | None: job._id as a string if a job exists referencing the jobDescriptionTemplate, else None
-        """
-        try:
-            jobdesc_oid = self._to_objectid(jobdescription_id)
-            if not jobdesc_oid:
-                logger.warning("Invalid Job Description ID: %s", jobdescription_id)
-                return None
-
-            coll = self._get_collection(self.jobs_coll_name)
-            # only project _id for efficiency
-            job_doc = coll.find_one({"jobDescriptionTemplate": jobdesc_oid}, {"_id": 1})
-            if not job_doc:
-                logger.info("No job found for jobDescriptionTemplate=%s", jobdescription_id)
-                return None
-
-            # job_doc["_id"] is an ObjectId; convert to string
-            return str(job_doc.get("_id"))
-        except Exception as e:
-            logger.exception("Error fetching job id by jobDescriptionTemplate ID: %s", e)
-            return None
 
     # -----------------------
     # Question templates specific

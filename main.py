@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import torch
 from contextlib import asynccontextmanager
@@ -37,10 +36,6 @@ async def lifespan(app: FastAPI):
         interval_seconds=3 * 60 * 60,
         start_hour_ist=6,
         end_hour_ist=18,
-        resume_ranker_factory=lambda: ResumeRanker(),  # lazy factory
-        mongo_candidates_db="algojobs",
-        mongo_jobs_db="algo-hr",
-        top_k_per_job=10,
     )
     app.state.periodic_ranker.start()
 
