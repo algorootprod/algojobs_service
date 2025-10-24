@@ -1,7 +1,7 @@
 from typing import List, Optional
 import torch
 from sentence_transformers import SentenceTransformer, util
-from app.schemas import Resume,RankedResumeOut, RecommendedJob, JobDescriptionTemplate
+from app.schemas import Resume,RankedResumeOut, RecommendedJob, JobDescription
 from app.services.mongoDB_service import MongoService
 
 class ResumeRanker:
@@ -124,24 +124,3 @@ class ResumeRanker:
             )
 
         return out
-
-
-    # print(f"Loaded {len(resumes)} resumes from MongoDB.")
-    # print(resumes[0])
-
-    # ranked_resumes = ranker.rank_resumes_by_similarity(job_description=job_desc, resumes=resumes, job_id="job123", top_k=2)
-
-    # print("Top ranked resumes:")
-    # print(len(ranked_resumes))
-    # print(ranked_resumes[0])
-    # for rr in ranked_resumes:
-    #     print(f"Candidate ID: {rr.candidate_id}, Name: {rr.name}, Score: {rr.recommended_jobs[0].score:.4f}")
-
-    # for rr in ranked_resumes:
-    #     result = service.upsert_ranked_resume_out(rr)
-    #     if result:
-    #         print(f"✅ Upserted recommendation for {rr.name} ({rr.candidate_id})")
-    #     else:
-    #         print(f"⚠️ Failed to upsert {rr.name} ({rr.candidate_id})")
-
-    # print("\nAll upserts complete ✅")
