@@ -29,19 +29,12 @@ class RankResponse(BaseModel):
 # --- Scheduler API Schemas ---
 
 class ScheduleRequest(BaseModel):
-    candidate_resume: str = Field(..., description="The full text of the candidate's resume.")
-    job_description: str = Field(..., description="The job description for the role.")
-    interview_template: str = Field(..., description="The template/prompt for the AI interviewer.")
-    evaluation_template: str = Field(..., description="The template for post-interview evaluation.")
-    interview_time: datetime = Field(..., description="The proposed date and time for the interview (UTC).")
-    candidate_id: str = Field(..., description="A unique identifier for the candidate.")
-    candidate_name: str = Field(..., description="Full name of the candidate.")
+    candidate_key: str
 
 class ScheduleResponse(BaseModel):
     message: str
     agent_name:str
     room_name: str
-    candidate_id: str
     scheduled_time: datetime
     token: str
     # In a real app, this would also include a meeting_id to track the interview state

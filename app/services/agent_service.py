@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Callable, Any
 
 from livekit.agents import Worker, WorkerOptions
-from app.core.config import config  # adjust if your config path differs
+from app.core.configs import config  # adjust if your config path differs
 
 logger = logging.getLogger("AgentManager")
 logger.setLevel(logging.INFO)

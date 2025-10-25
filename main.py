@@ -3,7 +3,7 @@ import torch
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sentence_transformers import SentenceTransformer
-from app.core.config import config
+from app.core.configs import config
 from app import ranker, scheduler
 from app.core.temporal_ranker import PeriodicResumeRanker
 from app.services.agent_registry import AgentRegistry
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
     app.state.periodic_ranker = PeriodicResumeRanker(
         interval_seconds=3 * 60 * 60,
-        start_hour_ist=6,
+        start_hour_ist=9,
         end_hour_ist=18,
     )
     app.state.periodic_ranker.start()

@@ -7,11 +7,17 @@ import asyncio
 from livekit import agents 
 from livekit.agents.voice import AgentSession, Agent
 from livekit.plugins import google, deepgram, silero, openai
+from app.services.mongoDB_service import MongoService
+
+mongo = MongoService(db_name="algojobs")
 
 async def entrypoint(ctx: agents.JobContext):
 
     metadata = json.loads(ctx.job.metadata)
     prompt = metadata.get("prompt", "You are an AI assistant helping with interviews.")
+    agent_id = metadata.get("agent_id", "unknown_agent")
+
+    agent_config= mongo.get_agent_config_by_id(agent_id)
 
     async def write_transcript():
         current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -60,6 +66,8 @@ async def entrypoint(ctx: agents.JobContext):
     )
 
     await session.generate_reply()
+
+    #TODO: implement time warning feature
 
     # async def _time_warning():
     #     try:
