@@ -1,12 +1,12 @@
-from dotenv import load_dotenv
-load_dotenv()
+
+from app.core.single_agent import SingleAgent
+from app.helpers.agent_builder import build_llm_instance, build_stt_instance, build_tts_instance
+from app.schemas import AgentConfig ,Agent
 from datetime import datetime
 import json
 import os
-import asyncio
 from livekit import agents 
-from livekit.agents.voice import AgentSession, Agent
-from livekit.plugins import google, deepgram, silero, openai
+from livekit.agents.voice import AgentSession
 from app.services.mongoDB_service import MongoService
 
 mongo = MongoService(db_name="algojobs")
@@ -17,7 +17,15 @@ async def entrypoint(ctx: agents.JobContext):
     prompt = metadata.get("prompt", "You are an AI assistant helping with interviews.")
     agent_id = metadata.get("agent_id", "unknown_agent")
 
-    agent_config= mongo.get_agent_config_by_id(agent_id)
+    agent_doc= mongo.get_agent_config_by_id(agent_id)
+    agent_doc = Agent.model_validate(agent_doc)
+    agent_config = getattr(agent_doc, "agentConfig", None)
+    agent_config = AgentConfig.model_validate(agent_config).model_dump()
+
+    llm = build_llm_instance(agent_config.llm.provider, agent_config.llm.model, agent_config.llm.api_key, agent_config.llm.temperature)
+    stt = build_stt_instance(agent_config.stt.provider, agent_config.stt.model, agent_config.stt.language, agent_config.stt.api_key)
+    tts = build_tts_instance(agent_config.tts.provider, agent_config.tts.model, agent_config.tts.sample_rate, agent_config.tts.language,
+                                credentials_info=agent_config.tts.api_key)
 
     async def write_transcript():
         current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -40,23 +48,10 @@ async def entrypoint(ctx: agents.JobContext):
     ctx.add_shutdown_callback(write_transcript)
     await ctx.connect()
 
-    agent = Agent(
-        instructions=prompt,
-        vad=silero.VAD.load(),
-        stt=deepgram.STT(  # Whisper model
-        model="nova-2-general",
-        language="en",
-        ),
-        llm=openai.LLM(model="gpt-4o-mini"),
-        tts=google.TTS(
-            voice_name="en-IN-Chirp3-HD-Charon",
-            language="en-IN",
-            credentials_file=r"D:\livekit-meet\ciplaxalgovox-23eb479f0a6f.json"
-        ),
-        # tools=[query_info],
-    )
+    session = AgentSession(stt=stt, llm=llm, tts=tts, vad=ctx.proc.userdata["vad"])
 
-    session = AgentSession()
+    agent = SingleAgent(prompt=prompt)
+
     await session.start(
         agent=agent, 
         room=ctx.room,
@@ -67,7 +62,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     await session.generate_reply()
 
-    #TODO: implement time warning feature
+    # TODO: implement time warning feature
 
     # async def _time_warning():
     #     try:
