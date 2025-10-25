@@ -86,7 +86,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 Or directly using Python (if venv is activated):
 
 ```bash
-python main.py
+uv run main.py
 ```
 
 ---

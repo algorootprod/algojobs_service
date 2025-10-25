@@ -1,15 +1,11 @@
 import logging
 import torch
+import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sentence_transformers import SentenceTransformer
-from app.core.configs import config
-from app import ranker, scheduler
-from app.core.temporal_ranker import PeriodicResumeRanker
-from app.services.agent_registry import AgentRegistry
-from app.services.mongoDB_service import MongoService
-from app.services.multi_job import ResumeRanker
-# Configure logging
+from app import ranker, scheduler, config, MongoService, AgentRegistry, PeriodicResumeRanker
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -69,3 +65,11 @@ app = FastAPI(
 # --- API Routers ---
 app.include_router(ranker, prefix=config.API_V1_STR, tags=["Resume Ranker"])
 app.include_router(scheduler, prefix=config.API_V1_STR, tags=["Interview Scheduler"])
+
+if __name__ == "__main__":
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        reload=True
+        )
