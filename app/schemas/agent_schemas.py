@@ -20,15 +20,11 @@ class TTS(BaseModel):
     api_key: str
 
 class AgentConfig(BaseModel):
-    prompt: str
     llm: Optional[LLM] = None
     stt: Optional[STT] = None
     tts: Optional[TTS] = None
 
 class Agent(BaseModel):
-    """
-    Schema for agent configuration.
-    """
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     agentConfig: Optional[AgentConfig] = None
