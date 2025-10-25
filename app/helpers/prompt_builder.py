@@ -1,3 +1,7 @@
+
+
+
+
 def create_interview_prompt(resume: str, job_description: str, interview_template: str) -> str:
     """
     Merges the candidate resume, job description, and interview template

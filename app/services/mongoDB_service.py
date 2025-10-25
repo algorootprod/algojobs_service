@@ -53,7 +53,7 @@ class MongoService:
         self.resumes_coll_name = "candidates"
         self.jobdesc_coll_name = "jobdescriptions"
         self.question_coll_name = "questionstemplates"
-        # self.jobs_coll_name = "jobs"
+        self.agents = "agents"
         self.recommendations_coll_name = "recommendations"
 
         logger.info("MongoService connected to database '%s'", db_name)
@@ -176,6 +176,10 @@ class MongoService:
     def get_all_jobs(self, filter_query: Dict[str, Any] = None, limit: int = 0) -> List[Dict[str, Any]]:
         sort=[("createdAt",-1)]
         return self.get_all(self.jobdesc_coll_name, filter_query, limit, sort)
+    
+
+    def get_agent_config_by_id(self, object_id: str) -> Optional[Dict[str, Any]]:
+        return self.get_by_id(self.agents, object_id)
 
     # -----------------------
     # Question templates specific
@@ -255,36 +259,3 @@ class MongoService:
 
         return self._serialize_document(result) if result else None
 
-
-# if __name__ == "__main__":
-
-#     service = MongoService(db_name="algo-hr")
-
-#     try:
-#         # get a resume by id
-#         # sample_id = input("Enter candidate ObjectId (or press enter to skip): ").strip()
-#         # if sample_id:
-#         #     resume = service.get_resume_by_id(sample_id)
-#         #     if resume:
-#         #         print("Resume:")
-#         #         print(json.dumps(resume, indent=2, default=str))
-#         #     else:
-#         #         print("No resume found for id:", sample_id)
-
-#         # get first 10 resumes
-#         resumes = service.get_all_resumes({"skills": "JavaScript"}, limit=2)
-#         print(f"\nFirst {len(resumes)} resumes (limit=10):")
-#         print(json.dumps(resumes, indent=2, default=str))
-
-#         # get job description templates (all)
-#         jd_templates = service.get_all_jobdescriptions(limit=2)
-#         print(f"\nJob description templates (up to 5): {len(jd_templates)}")
-#         print(json.dumps(jd_templates, indent=2, default=str))
-
-#         # get question templates (all)
-#         q_templates = service.get_all_questiontemplates(limit=2)
-#         print(f"\nQuestion templates (up to 5): {len(q_templates)}")
-#         print(json.dumps(q_templates, indent=2, default=str))
-
-#     finally:
-#         service.close()

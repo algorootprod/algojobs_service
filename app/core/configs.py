@@ -22,11 +22,12 @@ class Settings():
     MEET_HOST: str = os.getenv("MEET_HOST", "https://meet.livekit.io")
     TINYURL_API_KEY: str = os.getenv("TINYURL_API_KEY", "")
     MONGO_DB_URL: str = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
+    SHARED_SECRET: str = os.getenv("SHARED_SECRET", "default_shared_secret")
     
     class Config:
         case_sensitive = True
 
-    if not all([LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL]):
+    if not all([LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL, MONGO_DB_URL, SHARED_SECRET]):
         raise Exception("Environment variables not set properly. Please check your .env file.")
 
 # Instantiate settings

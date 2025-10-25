@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Optional, Dict, Any
 from livekit import api
-from app.core.config import config
+from app.core.configs import config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Dispatch")

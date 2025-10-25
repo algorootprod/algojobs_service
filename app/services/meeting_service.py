@@ -3,7 +3,7 @@ import requests
 from urllib.parse import quote_plus
 from livekit import api
 
-from app.core.config import config
+from app.core.configs import config
 
 def _generate_token(identity: str, name: str, room: str) -> str:
     """Generates a LiveKit JWT token for a participant.""" 
