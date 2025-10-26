@@ -16,4 +16,4 @@ RUN uv venv && \
 EXPOSE 8000
 
 # Run the app using UV environment
-CMD ["/bin/bash", "-c", ". .venv/bin/activate && uv run python main.py"]
+CMD ["/bin/bash", "-c", ". .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 5000"]
