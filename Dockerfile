@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml uv.lock ./
 
 # Create isolated environment in /install and install deps deterministically
-RUN pip install --no-cache-dir "uv" \
-    && uv venv --path /install \
+RUN pip install --no-cache-dir uv \
+    && uv venv --python python3 /install \
     && . /install/bin/activate \
     && uv sync
 
