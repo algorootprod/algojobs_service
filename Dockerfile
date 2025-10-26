@@ -1,39 +1,37 @@
-FROM python:3.11-slim AS builder
+FROM python:3.13-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install build dependencies
+# Install minimal build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    build-essential \
-    curl \
+    git build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only dependency files first for caching
+# Copy dependency files first for caching
 COPY pyproject.toml uv.lock ./
 
-# Create isolated environment in /install and install deps deterministically
+# Install uv and create deterministic venv
 RUN pip install --no-cache-dir uv \
     && uv venv --python python3 /install \
     && . /install/bin/activate \
     && uv sync
 
-# Copy the app source
+# Copy app source
 COPY . .
 
-FROM python:3.11-slim
+# Production stage
+FROM python:3.13-slim
 
 WORKDIR /app
 
-# Copy installed dependencies from builder
+# Copy venv from builder
 COPY --from=builder /install /usr/local
 
-# Copy app source code
+# Copy app source
 COPY --from=builder /app /app
 
-# Expose FastAPI port
+# Expose port
 EXPOSE 8000
 
-# Run the app
+# Run FastAPI
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
