@@ -36,7 +36,7 @@ pipeline {
                         $class: 'GitSCM',
                         branches: [[name: "*/${params.BRANCH}"]],
                         userRemoteConfigs: [[
-                            url: 'https://github.com/algorootprod/algojobs_python.git',
+                            url: 'https://github.com/algorootprod/algojobs_service.git',
                             credentialsId: 'github'
                         ]]
                     ])
