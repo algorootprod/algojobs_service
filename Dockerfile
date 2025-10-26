@@ -1,17 +1,19 @@
-# Build stage
+# Use Python slim as base
 FROM python:3.11-slim AS builder
 
+# Set working directory
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir uv
 
-# Copy source code
 COPY . .
+
+RUN uv venv && \
+    . .venv/bin/activate && \
+    uv sync  # installs dependencies from pyproject.toml and uv.lock
 
 # Expose FastAPI port
 EXPOSE 8000
 
-# Run the app with uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the app using UV environment
+CMD ["/bin/bash", "-c", ". .venv/bin/activate && uv run python main.py"]
