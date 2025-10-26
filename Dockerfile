@@ -14,6 +14,7 @@ COPY pyproject.toml uv.lock ./
 RUN pip install --no-cache-dir uv \
     && uv venv --python python3 /install \
     && . /install/bin/activate \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
     && uv sync
 
 # Copy app source
