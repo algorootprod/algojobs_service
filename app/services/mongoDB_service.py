@@ -2,7 +2,6 @@ import os
 from typing import Any, Dict, List, Optional
 from pymongo import MongoClient
 from bson import ObjectId
-import json
 import logging
 from dotenv import load_dotenv
 
