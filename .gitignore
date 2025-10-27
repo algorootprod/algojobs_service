@@ -8,3 +8,5 @@ __pycache__/
 *.pyo
 .env
 .DS_Store
+dist
+algo_hr.egg-info/

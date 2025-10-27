@@ -17,6 +17,6 @@ pyshorteners
 requests
 sentence-transformers
 tqdm
-torch
+torch==2.9.0+cpu
 transformers
 uvicorn
