@@ -1,5 +1,4 @@
 import logging
-import torch
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -17,7 +16,8 @@ async def lifespan(app: FastAPI):
     """
     # STARTUP
     logger.info("Application startup (lifespan)...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
     logger.info(f"Loading embedding model '{config.EMBEDDING_MODEL}' on device '{device}'")
     app.state.model = SentenceTransformer(config.EMBEDDING_MODEL, device=device)
     logger.info("Embedding model loaded successfully.")
@@ -68,7 +68,7 @@ app.include_router(scheduler, prefix=config.API_V1_STR, tags=["Interview Schedul
 
 if __name__ == "__main__":
     uvicorn.run(
-        app, 
+        "main:app", 
         host="0.0.0.0", 
         port=8000,
         reload=True

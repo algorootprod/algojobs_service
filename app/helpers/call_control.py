@@ -1,18 +1,12 @@
 from livekit.agents import function_tool, RunContext, get_job_context
 from livekit.api import DeleteRoomRequest
 from aiohttp.client_exceptions import ClientConnectionError
-from livekit import api
 import logging
 import aiohttp
-import json
-from livekit import rtc
 from aiohttp.client_exceptions import ClientOSError
 import ssl
-from typing import Optional, Mapping
+from typing import Optional
 from livekit.api.twirp_client import TwirpError
-from app.call_tools.call_logger import CallLogger
-import re
-from livekit.rtc.participant import RemoteParticipant
 
 logger = logging.getLogger("call_control")
 
@@ -21,10 +15,6 @@ async def hangup(reason: Optional[str] = None):
     try:
         job_ctx = get_job_context()
         room_name = job_ctx.room.name
-
-        call_logger = CallLogger()
-        call_logger.mark_call_end(room_name=room_name, hangup_reason=reason)
-
         logger.info(f"Attempting to delete room: {room_name}")
 
         await job_ctx.api.room.delete_room(DeleteRoomRequest(room=room_name))
