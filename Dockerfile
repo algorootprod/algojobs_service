@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -31,8 +31,6 @@ COPY --from=builder /install /usr/local
 # Copy app source
 COPY --from=builder /app /app
 
-# Expose port
 EXPOSE 8000
 
-# Run FastAPI
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
