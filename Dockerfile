@@ -6,19 +6,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_ROOT_USER_ACTION=ignore
 
 WORKDIR /app
-COPY requirements-minimal.txt .
 
-<<<<<<< HEAD
-RUN apt-get update && apt-get install -y build-essential git \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip install --upgrade pip
-# install using CPU wheel index for torch if needed
-RUN pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-minimal.txt
-
-COPY . .
-CMD ["python", "main.py"]
-=======
 # Install minimal build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -64,4 +52,3 @@ EXPOSE 8000
 
 # Run your FastAPI app
 CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
->>>>>>> 47ee679cadb7e0baf5461e5df2494aad28d28a55
