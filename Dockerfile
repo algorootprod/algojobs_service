@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir uv
 RUN uv venv /opt/venv \
     && . /opt/venv/bin/activate \
     # install CPU-only PyTorch wheel explicitly (no CUDA)
-    && pip install --no-cache-dir torch==2.5.1+cpu torchvision==0.20.1+cpu torchaudio==2.5.1+cpu \
+    && pip install --no-cache-dir torch==2.5.1+cpu \
         --index-url https://download.pytorch.org/whl/cpu \
     # sync other dependencies
     && uv sync --frozen
