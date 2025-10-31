@@ -22,3 +22,5 @@ requests
 sentence-transformers
 tqdm
 uvicorn
+google-genai
+python-multipart

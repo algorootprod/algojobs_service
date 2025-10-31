@@ -3,7 +3,7 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sentence_transformers import SentenceTransformer
-from app import ranker, scheduler, config, MongoService, AgentRegistry, PeriodicResumeRanker
+from app import ranker, scheduler,parser, config, MongoService, AgentRegistry, PeriodicResumeRanker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ app = FastAPI(
 # --- API Routers ---
 app.include_router(ranker, prefix=config.API_V1_STR, tags=["Resume Ranker"])
 app.include_router(scheduler, prefix=config.API_V1_STR, tags=["Interview Scheduler"])
-
+app.include_router(parser, prefix=config.API_V1_STR, tags=["Resume Parser"])
 if __name__ == "__main__":
     uvicorn.run(
         "main:app", 

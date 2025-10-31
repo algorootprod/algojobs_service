@@ -4,8 +4,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 import logging
 from dotenv import load_dotenv
-
-from app.schemas.utils_schemas import RankedResumeOut
+from app.schemas import RankedResumeOut , CandidateResume
 load_dotenv()
 from datetime import datetime
 from pymongo import ASCENDING, ReturnDocument
@@ -68,6 +67,90 @@ class MongoService:
     # -----------------------
     # Generic helpers
     # -----------------------
+    def _to_datetime_safe(self, date_str: str) -> Optional[datetime]:
+        """
+        Safely convert a date string to a datetime object.
+        Handles ISO formats (YYYY-MM-DD), "Month YYYY", and "Mon YYYY".
+        """
+        if not date_str or not isinstance(date_str, str):
+            return None
+
+        # Handle extra whitespace like 'Nov 2024   '
+        date_str = date_str.strip()
+
+        # List of formats to try.
+        # %B = Full month name (April), %b = Abbr. month name (Sept)
+        formats_to_try = [
+            '%Y-%m-%d',    # 2025-04-01
+            '%B %Y',       # April 2025
+            '%b %Y',       # Apr 2025 (or Sept 2025)
+        ]
+
+        for fmt in formats_to_try:
+            try:
+                # If successful, return the datetime object
+                # This will store "April 2025" as datetime(2025, 4, 1)
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                # If format fails, just try the next one
+                continue
+        
+        # Try full ISO format as a last resort
+        try:
+            return datetime.fromisoformat(date_str)
+        except Exception:
+            pass # Ignore
+
+        # If all formats fail, log the warning and return None
+        logger.warning("Could not parse date string (all formats failed): %s", date_str)
+        return None
+
+    def _sync_candidate_fields(self, payload: Dict[str, Any]) -> None:
+        """
+        Applies the same pre-save sync logic from the Mongoose schema
+        to ensure data consistency.
+        """
+        # Sync experienceEntries <-> experiences
+        if 'experienceEntries' in payload:
+            payload['experiences'] = payload['experienceEntries']
+        
+        # Sync languageProficiencies <-> languages
+        if 'languageProficiencies' in payload:
+            payload['languages'] = payload['languageProficiencies']
+        
+        # Sync educationEntries <-> education
+        if 'educationEntries' in payload:
+            payload['education'] = payload['educationEntries']
+
+        # Sync fullName <-> firstName/lastName
+        fullName = payload.get('fullName')
+        firstName = payload.get('firstName')
+        lastName = payload.get('lastName')
+        if fullName and (not firstName or not lastName):
+            parts = fullName.strip().split(None, 1)
+            payload['firstName'] = parts[0]
+            payload['lastName'] = parts[1] if len(parts) > 1 else ''
+        elif not fullName and (firstName or lastName):
+            payload['fullName'] = f"{firstName or ''} {lastName or ''}".strip()
+
+        # Sync currentLocation <-> city/state
+        if payload.get('currentLocation'):
+            if payload['currentLocation'].get('city'):
+                payload['city'] = payload['currentLocation']['city']
+            if payload['currentLocation'].get('state'):
+                payload['state'] = payload['currentLocation']['state']
+        elif payload.get('city') or payload.get('state'):
+            payload['currentLocation'] = {
+                "city": payload.get('city'),
+                "state": payload.get('state')
+            }
+        
+        # Sync totalExperienceYears <-> totalExperience
+        if 'totalExperienceYears' in payload:
+            payload['totalExperience'] = payload['totalExperienceYears']
+        elif 'totalExperience' in payload:
+            payload['totalExperienceYears'] = payload['totalExperience']
+
     def _to_objectid(self, value: Any) -> Optional[ObjectId]:
         """
         Convert a value to ObjectId if possible, else return None.
@@ -258,3 +341,97 @@ class MongoService:
 
         return self._serialize_document(result) if result else None
 
+    def upsert_resume(
+            self, 
+            owner_id: str, 
+            parsed_data: Union[Dict[str, Any], "CandidateParseSchema"]
+        ) -> Optional[Dict[str, Any]]:
+            """
+            Upserts a candidate resume based on parsed data.
+
+            - Uses 'owner_id' and 'phone' from parsed_data as the unique key.
+            - Applies Mongoose pre-save logic (syncing fields).
+            - Converts simplified date strings (from parser) back to datetime objects
+            for legacy fields (internships, projects, accomplishments).
+            - Returns the serialized, upserted document.
+            """
+            coll = self._get_collection(self.resumes_coll_name)
+            now = datetime.utcnow()
+
+            # 1. Convert Pydantic model to dict if necessary
+            if hasattr(parsed_data, "model_dump"):
+                data = parsed_data.model_dump()
+            elif isinstance(parsed_data, dict):
+                data = parsed_data
+            else:
+                logger.error("Unsupported type for parsed_data: %s", type(parsed_data))
+                return None
+
+            # 2. Get unique keys
+            phone = data.get("phone")
+            if not phone:
+                logger.error("Cannot upsert resume: 'phone' is missing or empty in parsed data.")
+                return None
+                
+            owner_oid = self._to_objectid(owner_id)
+            if not owner_oid:
+                logger.error("Cannot upsert resume: 'owner_id' is invalid: %s", owner_id)
+                return None
+
+            # 3. Define the filter for upsert
+            filter_query = {
+                "phone": phone,
+                "owner": owner_oid
+            }
+            
+            # 4. Build the payload and apply sync logic
+            payload = data.copy()
+            self._sync_candidate_fields(payload)
+            
+            # 5. Re-hydrate simplified string dates to datetime objects
+            for item in payload.get('internships') or []:
+                item['startDate'] = self._to_datetime_safe(item.get('startDate'))
+                item['endDate'] = self._to_datetime_safe(item.get('endDate'))
+                
+            for item in payload.get('projects') or []:
+                item['startDate'] = self._to_datetime_safe(item.get('startDate'))
+                item['endDate'] = self._to_datetime_safe(item.get('endDate'))
+
+            for item in payload.get('accomplishments') or []:
+                item['date'] = self._to_datetime_safe(item.get('date'))
+            
+            # 6. Prepare the update operation
+            payload['updatedAt'] = now
+
+            # --- FIX: Remove 'phone' and 'owner' from the $set payload ---
+            # They are part of the unique key and should only be set on insert.
+            # Leaving them in 'payload' conflicts with '$setOnInsert'.
+            if 'phone' in payload:
+                del payload['phone']
+            if 'owner' in payload:
+                del payload['owner'] # 'owner' isn't in parsed_data, but good to have
+
+            update_op = {
+                "$set": payload,  # 'payload' no longer contains 'phone'
+                "$setOnInsert": {
+                    "createdAt": now,
+                    "phone": phone, # This is now the *only* operator touching 'phone'
+                    "owner": owner_oid # This is the *only* operator touching 'owner'
+                }
+            }
+
+            # 7. Perform the upsert
+            try:
+                result = coll.find_one_and_update(
+                    filter_query,
+                    update_op,
+                    upsert=True,
+                    return_document=ReturnDocument.AFTER,
+                )
+                logger.info("Successfully upserted resume for phone: %s, owner: %s", phone, owner_id)
+                return self._serialize_document(result)
+            except Exception as e:
+                # The exception will be logged by the main script's 'except' block
+                # Re-raise it so the traceback is complete
+                logger.error("Error upserting resume for phone %s: %s", phone, e)
+                raise e # Re-raise the exception
