@@ -1,54 +1,54 @@
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore
 
 WORKDIR /app
 
-# Install system build deps (for building wheels)
+# Install minimal build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git build-essential curl \
+    build-essential \
+    git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files for caching
 COPY pyproject.toml uv.lock ./
 
-# Install uv for dependency management
+# Install uv (fast dependency resolver)
 RUN pip install --no-cache-dir uv
 
-# Create venv and install ONLY CPU dependencies
-RUN uv venv /opt/venv \
-    && . /opt/venv/bin/activate \
-    # install CPU-only PyTorch wheel explicitly (no CUDA)
-    && pip install --no-cache-dir torch==2.5.1+cpu \
-        --index-url https://download.pytorch.org/whl/cpu \
-    # sync other dependencies
-    && uv sync --frozen
+# Create isolated environment
+RUN uv venv --python python
 
-# Copy all source files (includes main.py and app/)
-COPY . .
+FROM base AS deps
 
+WORKDIR /app
+
+# Force CPU-only torch installation to avoid NVIDIA libs
+RUN uv pip install --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+
+# Install the rest of your dependencies (will reuse torch above)
+RUN uv pip install --no-cache-dir .
 
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy venv from builder
-COPY --from=builder /opt/venv /opt/venv
+# Copy from deps layer
+COPY --from=deps /usr/local /usr/local
+COPY --from=deps /app /app
+COPY . .
 
-# Set environment variables
-ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    UVICORN_WORKERS=1 \
-    OMP_NUM_THREADS=1 \
-    TORCH_CUDA_AVAILABLE=0
 
-# Copy the app source
-COPY --from=builder /app /app
+# Set environment
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PATH="/usr/local/bin:$PATH"
 
-# Expose FastAPI port
 EXPOSE 8000
 
-# Healthcheck (optional)
-HEALTHCHECK CMD curl --fail http://localhost:8000/health || exit 1
-
-# Start the FastAPI app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run your FastAPI app
+CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
