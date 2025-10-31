@@ -1,8 +1,9 @@
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install minimal build dependencies
+# Install system build deps (only for build stage)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential curl \
     && rm -rf /var/lib/apt/lists/*
@@ -10,27 +11,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy dependency files first for caching
 COPY pyproject.toml uv.lock ./
 
-# Install uv and create deterministic venv
+# Install uv and sync dependencies into isolated venv
 RUN pip install --no-cache-dir uv \
-    && uv venv --python python3 /install \
-    && . /install/bin/activate \
+    && uv venv /opt/venv \
+    && . /opt/venv/bin/activate \
     && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
-    && uv sync
+    && uv sync --frozen
 
-# Copy app source
+# Copy only the application source (after deps)
 COPY . .
 
-# Production stage
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
 # Copy venv from builder
-COPY --from=builder /install /usr/local
+COPY --from=builder /opt/venv /opt/venv
 
-# Copy app source
+# Set environment variables
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Copy app source code
 COPY --from=builder /app /app
 
+# Expose FastAPI port
 EXPOSE 8000
 
+# Healthcheck (optional but recommended)
+HEALTHCHECK CMD curl --fail http://localhost:8000/health || exit 1
+
+# Start app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
