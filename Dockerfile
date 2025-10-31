@@ -1,52 +1,44 @@
-FROM python:3.12-slim AS base
-
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_ROOT_USER_ACTION=ignore
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install minimal build dependencies
+# Install system dependencies needed for builds
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    curl \
+    git build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files for caching
+# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Install uv (fast dependency resolver)
-RUN pip install --no-cache-dir uv
+# Install uv and create deterministic venv
+RUN pip install --no-cache-dir uv \
+    && uv venv /opt/venv \
+    && . /opt/venv/bin/activate \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && uv sync --frozen
 
-# Create isolated environment
-RUN uv venv --python python
-
-FROM base AS deps
-
-WORKDIR /app
-
-# Force CPU-only torch installation to avoid NVIDIA libs
-RUN uv pip install --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
-
-# Install the rest of your dependencies (will reuse torch above)
-RUN uv pip install --no-cache-dir .
+# Copy app source
+COPY . .
 
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy from deps layer
-COPY --from=deps /usr/local /usr/local
-COPY --from=deps /app /app
+# Copy virtual environment
+COPY --from=builder /opt/venv /opt/venv
 
-# Set environment
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PATH="/usr/local/bin:$PATH"
+# Set environment variables
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
+# Copy the entire application (main.py and app/ folder)
+COPY --from=builder /app /app
+
+# Expose FastAPI port
 EXPOSE 8000
 
-# Run your FastAPI app
-CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK CMD curl --fail http://localhost:8000/health || exit 1
+
+# Run FastAPI app
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
