@@ -344,7 +344,7 @@ class MongoService:
     def upsert_resume(
             self, 
             owner_id: str, 
-            parsed_data: Union[Dict[str, Any], "CandidateParseSchema"]
+            parsed_data: Union[Dict[str, Any], CandidateResume]
         ) -> Optional[Dict[str, Any]]:
             """
             Upserts a candidate resume based on parsed data.
@@ -358,7 +358,6 @@ class MongoService:
             coll = self._get_collection(self.resumes_coll_name)
             now = datetime.utcnow()
 
-            # 1. Convert Pydantic model to dict if necessary
             if hasattr(parsed_data, "model_dump"):
                 data = parsed_data.model_dump()
             elif isinstance(parsed_data, dict):
@@ -367,7 +366,6 @@ class MongoService:
                 logger.error("Unsupported type for parsed_data: %s", type(parsed_data))
                 return None
 
-            # 2. Get unique keys
             phone = data.get("phone")
             if not phone:
                 logger.error("Cannot upsert resume: 'phone' is missing or empty in parsed data.")
@@ -378,17 +376,14 @@ class MongoService:
                 logger.error("Cannot upsert resume: 'owner_id' is invalid: %s", owner_id)
                 return None
 
-            # 3. Define the filter for upsert
             filter_query = {
                 "phone": phone,
                 "owner": owner_oid
             }
             
-            # 4. Build the payload and apply sync logic
             payload = data.copy()
             self._sync_candidate_fields(payload)
             
-            # 5. Re-hydrate simplified string dates to datetime objects
             for item in payload.get('internships') or []:
                 item['startDate'] = self._to_datetime_safe(item.get('startDate'))
                 item['endDate'] = self._to_datetime_safe(item.get('endDate'))
@@ -400,12 +395,8 @@ class MongoService:
             for item in payload.get('accomplishments') or []:
                 item['date'] = self._to_datetime_safe(item.get('date'))
             
-            # 6. Prepare the update operation
             payload['updatedAt'] = now
 
-            # --- FIX: Remove 'phone' and 'owner' from the $set payload ---
-            # They are part of the unique key and should only be set on insert.
-            # Leaving them in 'payload' conflicts with '$setOnInsert'.
             if 'phone' in payload:
                 del payload['phone']
             if 'owner' in payload:
@@ -420,7 +411,6 @@ class MongoService:
                 }
             }
 
-            # 7. Perform the upsert
             try:
                 result = coll.find_one_and_update(
                     filter_query,
@@ -431,7 +421,5 @@ class MongoService:
                 logger.info("Successfully upserted resume for phone: %s, owner: %s", phone, owner_id)
                 return self._serialize_document(result)
             except Exception as e:
-                # The exception will be logged by the main script's 'except' block
-                # Re-raise it so the traceback is complete
                 logger.error("Error upserting resume for phone %s: %s", phone, e)
-                raise e # Re-raise the exception
+                raise e
